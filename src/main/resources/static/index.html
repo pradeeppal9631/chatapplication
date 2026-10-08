@@ -1,0 +1,3077 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Private Chat</title>
+
+  <!-- STOMP -->
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.1.1/bundles/stomp.umd.min.js"></script>
+
+  <style>
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html,
+    body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #eef2f7;
+        color: #172033;
+    }
+
+    body {
+        overflow: hidden;
+    }
+
+    button,
+    input {
+        font: inherit;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+
+    /* =====================================================
+       APPLICATION ROOT
+    ===================================================== */
+
+    #app {
+        width: 100%;
+        height: 100vh;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        padding: 20px;
+    }
+
+
+    /* =====================================================
+       AUTH
+    ===================================================== */
+
+    .auth-card {
+        width: 420px;
+        max-width: 100%;
+
+        background: white;
+
+        padding: 30px;
+
+        border-radius: 18px;
+
+        box-shadow:
+            0 15px 45px rgba(0,0,0,.12);
+    }
+
+    .auth-card h1 {
+        margin: 0 0 8px;
+    }
+
+    .muted {
+        color: #707b8f;
+        font-size: 14px;
+    }
+
+    .tabs {
+        display: flex;
+
+        background: #f1f3f7;
+
+        padding: 4px;
+
+        border-radius: 10px;
+
+        margin: 22px 0;
+    }
+
+    .tabs button {
+        flex: 1;
+
+        border: none;
+
+        background: transparent;
+
+        padding: 11px;
+
+        border-radius: 8px;
+    }
+
+    .tabs button.active {
+        background: white;
+
+        font-weight: bold;
+
+        box-shadow:
+            0 2px 8px rgba(0,0,0,.08);
+    }
+
+    .field {
+        margin-bottom: 15px;
+    }
+
+    .field label {
+        display: block;
+
+        font-size: 13px;
+
+        font-weight: bold;
+
+        margin-bottom: 6px;
+    }
+
+    .field input {
+        width: 100%;
+
+        padding: 12px;
+
+        border:
+            1px solid #ccd4df;
+
+        border-radius: 9px;
+
+        outline: none;
+    }
+
+    .field input:focus {
+        border-color: #315bea;
+    }
+
+    .primary {
+        width: 100%;
+
+        padding: 12px;
+
+        border: none;
+
+        border-radius: 9px;
+
+        background: #315bea;
+
+        color: white;
+
+        font-weight: bold;
+    }
+
+    .primary:disabled {
+        opacity: .6;
+    }
+
+    .message {
+        margin-top: 12px;
+
+        padding: 10px;
+
+        border-radius: 8px;
+
+        font-size: 13px;
+
+        display: none;
+    }
+
+    .message.show {
+        display: block;
+    }
+
+    .message.error {
+        background: #fff0f0;
+        color: #b42318;
+    }
+
+    .message.success {
+        background: #edf9f1;
+        color: #16733b;
+    }
+
+
+    /* =====================================================
+       CHAT WINDOW
+    ===================================================== */
+
+    .chat {
+        width: 1200px;
+        max-width: 100%;
+
+        height: 750px;
+        max-height: calc(100vh - 40px);
+
+        background: white;
+
+        border-radius: 18px;
+
+        overflow: hidden;
+
+        display: grid;
+
+        grid-template-columns: 310px minmax(0, 1fr);
+
+        box-shadow:
+            0 15px 50px rgba(0,0,0,.12);
+    }
+
+
+    /* =====================================================
+       SIDEBAR
+    ===================================================== */
+
+    .sidebar {
+        min-width: 0;
+
+        border-right:
+            1px solid #e1e6ee;
+
+        display: flex;
+
+        flex-direction: column;
+
+        overflow: hidden;
+    }
+
+    .side-top {
+        padding: 18px;
+
+        border-bottom:
+            1px solid #e1e6ee;
+    }
+
+    .me {
+        display: flex;
+
+        align-items: center;
+
+        gap: 10px;
+    }
+
+    .avatar {
+        width: 42px;
+        height: 42px;
+
+        border-radius: 50%;
+
+        background: #315bea;
+
+        color: white;
+
+        display: flex;
+
+        justify-content: center;
+
+        align-items: center;
+
+        font-weight: bold;
+
+        flex-shrink: 0;
+    }
+
+    .me-info {
+        min-width: 0;
+
+        flex: 1;
+    }
+
+    .me-name {
+        font-weight: bold;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+    }
+
+    .online-text {
+        font-size: 12px;
+
+        color: #29935c;
+
+        margin-top: 3px;
+    }
+
+    .logout {
+        border:
+            1px solid #d5dbe5;
+
+        background: white;
+
+        border-radius: 8px;
+
+        padding: 7px 9px;
+
+        flex-shrink: 0;
+    }
+
+
+    /* =====================================================
+       SEARCH
+    ===================================================== */
+
+    .search-box {
+        margin-top: 18px;
+    }
+
+    .search-box label {
+        display: block;
+
+        margin-bottom: 7px;
+    }
+
+    .search-row {
+        display: flex;
+
+        gap: 7px;
+    }
+
+    .search-row input {
+        flex: 1;
+
+        min-width: 0;
+
+        padding: 10px;
+
+        border:
+            1px solid #ccd4df;
+
+        border-radius: 9px;
+
+        outline: none;
+    }
+
+    .search-row button {
+        border: none;
+
+        background: #315bea;
+
+        color: white;
+
+        border-radius: 9px;
+
+        padding: 0 13px;
+
+        font-weight: bold;
+    }
+
+    .search-result {
+        margin-top: 12px;
+    }
+
+    .user-result {
+        display: flex;
+
+        align-items: center;
+
+        gap: 9px;
+
+        border:
+            1px solid #dce2eb;
+
+        border-radius: 10px;
+
+        padding: 9px;
+    }
+
+    .user-result .avatar {
+        width: 36px;
+        height: 36px;
+
+        font-size: 12px;
+    }
+
+    .user-info {
+        flex: 1;
+
+        min-width: 0;
+    }
+
+    .user-info strong {
+        display: block;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+    }
+
+    .user-info small {
+        color: #788396;
+    }
+
+    .chat-btn {
+        border: none;
+
+        background: #315bea;
+
+        color: white;
+
+        border-radius: 7px;
+
+        padding: 7px 10px;
+
+        font-size: 12px;
+
+        font-weight: bold;
+    }
+
+    .hint {
+        margin-top: 10px;
+
+        font-size: 12px;
+
+        color: #7a8495;
+
+        line-height: 1.4;
+    }
+
+
+    /* =====================================================
+       MAIN CHAT
+    ===================================================== */
+
+    .chat-main {
+        display: flex;
+
+        flex-direction: column;
+
+        min-width: 0;
+
+        min-height: 0;
+
+        overflow: hidden;
+    }
+
+
+    /* =====================================================
+       CHAT HEADER
+    ===================================================== */
+
+    .chat-header {
+        height: 75px;
+
+        min-height: 75px;
+
+        flex-shrink: 0;
+
+        display: flex;
+
+        align-items: center;
+
+        padding: 0 20px;
+
+        border-bottom:
+            1px solid #e1e6ee;
+
+        gap: 11px;
+
+        background: white;
+    }
+
+    .chat-user {
+        min-width: 0;
+    }
+
+    .chat-user strong {
+        display: block;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+    }
+
+    .chat-user span {
+        display: block;
+
+        font-size: 12px;
+
+        color: #7b8697;
+
+        margin-top: 3px;
+    }
+
+    .connection {
+        margin-left: auto;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 6px;
+
+        font-size: 12px;
+
+        color: #7b8697;
+
+        flex-shrink: 0;
+    }
+
+    .dot {
+        width: 8px;
+        height: 8px;
+
+        border-radius: 50%;
+
+        background: #aaa;
+    }
+
+    .dot.connected {
+        background: #2eaa63;
+    }
+
+
+    /* =====================================================
+       MESSAGES
+       IMPORTANT STABILITY FIX
+    ===================================================== */
+
+    .messages {
+        flex: 1 1 auto;
+
+        min-height: 0;
+
+        min-width: 0;
+
+        overflow-y: auto;
+
+        overflow-x: hidden;
+
+        padding: 20px;
+
+        background: #f7f9fc;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 8px;
+
+        overscroll-behavior: contain;
+
+        scroll-behavior: auto;
+
+        scrollbar-gutter: stable;
+    }
+
+    /*
+     * Prevent flex children from affecting
+     * the height of the scroll container.
+     */
+
+    .messages > * {
+        flex-shrink: 0;
+    }
+
+    .empty {
+        margin: auto;
+
+        text-align: center;
+
+        color: #7a8495;
+
+        font-size: 14px;
+
+        flex-shrink: 0;
+    }
+
+    .message-row {
+        display: flex;
+
+        width: 100%;
+
+        flex-shrink: 0;
+    }
+
+    .message-row.mine {
+        justify-content: flex-end;
+    }
+
+    .bubble {
+        max-width: min(70%, 650px);
+
+        background: white;
+
+        border:
+            1px solid #e0e5ec;
+
+        padding: 10px 12px;
+
+        border-radius: 13px;
+
+        word-break: break-word;
+
+        overflow-wrap: anywhere;
+
+        line-height: 1.4;
+    }
+
+    .message-row.mine .bubble {
+        background: #315bea;
+
+        color: white;
+
+        border-color: #315bea;
+    }
+
+    .time {
+        font-size: 10px;
+
+        opacity: .65;
+
+        text-align: right;
+
+        margin-top: 4px;
+    }
+
+    .system-message {
+        width: 100%;
+
+        flex-shrink: 0;
+
+        text-align: center;
+
+        color: #7b8697;
+
+        font-size: 12px;
+
+        padding: 8px;
+    }
+
+
+    /* =====================================================
+       COMPOSER
+    ===================================================== */
+
+    .composer {
+        min-height: 68px;
+
+        flex-shrink: 0;
+
+        padding: 13px 16px;
+
+        display: flex;
+
+        gap: 9px;
+
+        border-top:
+            1px solid #e1e6ee;
+
+        background: white;
+    }
+
+    .composer input {
+        flex: 1;
+
+        min-width: 0;
+
+        padding: 12px;
+
+        border:
+            1px solid #ccd4df;
+
+        border-radius: 10px;
+
+        outline: none;
+    }
+
+    .composer input:focus {
+        border-color: #315bea;
+    }
+
+    .composer button {
+        border: none;
+
+        background: #315bea;
+
+        color: white;
+
+        padding: 0 18px;
+
+        border-radius: 10px;
+
+        font-weight: bold;
+
+        flex-shrink: 0;
+    }
+
+    .composer button:disabled {
+        opacity: .5;
+
+        cursor: not-allowed;
+    }
+
+
+    /* =====================================================
+       MOBILE
+    ===================================================== */
+
+    @media(max-width:760px) {
+
+        #app {
+            padding: 0;
+        }
+
+        .chat {
+            width: 100%;
+
+            height: 100vh;
+
+            max-height: none;
+
+            border-radius: 0;
+
+            display: flex;
+        }
+
+        .sidebar {
+            display: none;
+        }
+
+        .chat-main {
+            width: 100%;
+
+            height: 100%;
+        }
+
+        .bubble {
+            max-width: 82%;
+        }
+
+        .messages {
+            padding: 14px;
+        }
+
+        .chat-header {
+            padding: 0 14px;
+        }
+
+        .composer {
+            padding: 10px;
+        }
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div id="app">
+
+
+  <!-- =====================================================
+       LOGIN / REGISTER
+  ===================================================== -->
+
+  <section id="authView" class="auth-card">
+
+    <h1>💬 Private Chat</h1>
+
+    <div class="muted">
+      Login to chat with registered users.
+    </div>
+
+
+    <div class="tabs">
+
+      <button
+              id="loginTab"
+              class="active"
+              type="button">
+
+        Login
+
+      </button>
+
+
+      <button
+              id="registerTab"
+              type="button">
+
+        Register
+
+      </button>
+
+    </div>
+
+
+    <form id="authForm">
+
+      <div class="field">
+
+        <label>Username</label>
+
+        <input
+                id="username"
+                autocomplete="username"
+                placeholder="Username"
+                required>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>Password</label>
+
+        <input
+                id="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Password"
+                required>
+
+      </div>
+
+
+      <div
+              id="emailField"
+              class="field hidden">
+
+        <label>Email</label>
+
+        <input
+                id="email"
+                type="email"
+                autocomplete="email"
+                placeholder="Email">
+
+      </div>
+
+
+      <button
+              id="authButton"
+              class="primary"
+              type="submit">
+
+        Login
+
+      </button>
+
+
+      <div
+              id="authMessage"
+              class="message">
+      </div>
+
+    </form>
+
+  </section>
+
+
+  <!-- =====================================================
+       CHAT APPLICATION
+  ===================================================== -->
+
+  <section
+          id="chatView"
+          class="chat hidden">
+
+
+    <!-- =================================================
+         SIDEBAR
+    ================================================= -->
+
+    <aside class="sidebar">
+
+      <div class="side-top">
+
+
+        <!-- CURRENT USER -->
+
+        <div class="me">
+
+          <div
+                  id="myAvatar"
+                  class="avatar">
+
+            ?
+
+          </div>
+
+
+          <div class="me-info">
+
+            <div
+                    id="myUsername"
+                    class="me-name">
+
+              Loading...
+
+            </div>
+
+
+            <div class="online-text">
+
+              ● Online
+
+            </div>
+
+          </div>
+
+
+          <button
+                  id="logoutButton"
+                  class="logout"
+                  type="button">
+
+            Logout
+
+          </button>
+
+        </div>
+
+
+        <!-- SEARCH USER -->
+
+        <div class="search-box">
+
+          <label class="muted">
+
+            Search registered user
+
+          </label>
+
+
+          <div class="search-row">
+
+            <input
+                    id="searchInput"
+                    placeholder="Enter exact username">
+
+
+            <button
+                    id="searchButton"
+                    type="button">
+
+              Search
+
+            </button>
+
+          </div>
+
+
+          <div
+                  id="searchResult"
+                  class="search-result">
+          </div>
+
+
+          <div class="hint">
+
+            Search checks MongoDB.
+            Only an existing registered user
+            can be selected.
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+
+    <!-- =================================================
+         MAIN CHAT
+    ================================================= -->
+
+    <main class="chat-main">
+
+
+      <!-- CHAT HEADER -->
+
+      <header class="chat-header">
+
+        <div
+                id="chatAvatar"
+                class="avatar">
+
+          ?
+
+        </div>
+
+
+        <div class="chat-user">
+
+          <strong id="chatUsername">
+
+            Select a user
+
+          </strong>
+
+
+          <span id="chatStatus">
+
+                        Search a username to start chatting
+
+                    </span>
+
+        </div>
+
+
+        <div class="connection">
+
+                    <span
+                            id="connectionDot"
+                            class="dot">
+                    </span>
+
+
+          <span id="connectionText">
+
+                        Disconnected
+
+                    </span>
+
+        </div>
+
+      </header>
+
+
+      <!-- =================================================
+           MESSAGE AREA
+      ================================================= -->
+
+      <div
+              id="messages"
+              class="messages">
+
+        <div
+                id="emptyState"
+                class="empty">
+
+          <strong>
+
+            Select a registered user
+
+          </strong>
+
+          <br>
+
+          Search the exact username
+          and click Chat.
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           MESSAGE INPUT
+      ================================================= -->
+
+      <form
+              id="messageForm"
+              class="composer">
+
+        <input
+                id="messageInput"
+                autocomplete="off"
+                placeholder="Select a user first..."
+                disabled>
+
+
+        <button
+                id="sendButton"
+                type="submit"
+                disabled>
+
+          Send
+
+        </button>
+
+      </form>
+
+    </main>
+
+  </section>
+
+</div>
+
+
+<script>
+
+  "use strict";
+
+
+  /* =========================================================
+     BACKEND CONFIGURATION
+  ========================================================= */
+
+  const API = "http://localhost:8081";
+
+  const WS_URL = "ws://localhost:8081/ws";
+
+
+  /* =========================================================
+     APPLICATION STATE
+  ========================================================= */
+
+  let jwtToken =
+      localStorage.getItem("chat_jwt") || "";
+
+  let currentUser = null;
+
+  let selectedUser = null;
+
+  let stompClient = null;
+
+  let websocketConnected = false;
+
+  let registerMode = false;
+
+
+  /* =========================================================
+     DOM SHORTCUT
+  ========================================================= */
+
+  function $(id) {
+
+      return document.getElementById(id);
+  }
+
+
+  /* =========================================================
+     INITIALS
+  ========================================================= */
+
+  function getInitials(username) {
+
+      if (!username) {
+          return "?";
+      }
+
+      return username
+          .trim()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map(word =>
+              word.charAt(0).toUpperCase()
+          )
+          .join("");
+  }
+
+
+  /* =========================================================
+     AUTH MESSAGE
+  ========================================================= */
+
+  function showAuthMessage(
+      text,
+      type = "error"
+  ) {
+
+      const box = $("authMessage");
+
+      box.textContent = text;
+
+      if (!text) {
+
+          box.className = "message";
+
+          return;
+      }
+
+      box.className =
+          "message show " + type;
+  }
+
+
+  /* =========================================================
+     LOGIN SCREEN
+  ========================================================= */
+
+  function showLoginScreen() {
+
+      $("authView")
+          .classList
+          .remove("hidden");
+
+      $("chatView")
+          .classList
+          .add("hidden");
+  }
+
+
+  /* =========================================================
+     CHAT SCREEN
+  ========================================================= */
+
+  function showChatScreen() {
+
+      $("authView")
+          .classList
+          .add("hidden");
+
+      $("chatView")
+          .classList
+          .remove("hidden");
+  }
+
+
+  /* =========================================================
+     LOGIN TAB
+  ========================================================= */
+
+  $("loginTab")
+      .addEventListener(
+          "click",
+          () => {
+
+              registerMode = false;
+
+              $("loginTab")
+                  .classList
+                  .add("active");
+
+              $("registerTab")
+                  .classList
+                  .remove("active");
+
+              $("emailField")
+                  .classList
+                  .add("hidden");
+
+              $("authButton")
+                  .textContent = "Login";
+
+              showAuthMessage("");
+          }
+      );
+
+
+  /* =========================================================
+     REGISTER TAB
+  ========================================================= */
+
+  $("registerTab")
+      .addEventListener(
+          "click",
+          () => {
+
+              registerMode = true;
+
+              $("registerTab")
+                  .classList
+                  .add("active");
+
+              $("loginTab")
+                  .classList
+                  .remove("active");
+
+              $("emailField")
+                  .classList
+                  .remove("hidden");
+
+              $("authButton")
+                  .textContent =
+                  "Create Account";
+
+              showAuthMessage("");
+          }
+      );
+
+
+  /* =========================================================
+     API REQUEST
+  ========================================================= */
+
+  async function apiRequest(
+      path,
+      options = {}
+  ) {
+
+      const headers =
+          new Headers(
+              options.headers || {}
+          );
+
+      headers.set(
+          "Content-Type",
+          "application/json"
+      );
+
+
+      if (jwtToken) {
+
+          headers.set(
+              "Authorization",
+              "Bearer " + jwtToken
+          );
+      }
+
+
+      const response =
+          await fetch(
+              API + path,
+              {
+                  ...options,
+                  headers
+              }
+          );
+
+
+      const text =
+          await response.text();
+
+
+      let data = null;
+
+
+      try {
+
+          data =
+              text
+                  ? JSON.parse(text)
+                  : null;
+
+      } catch {
+
+          data = text;
+      }
+
+
+      if (!response.ok) {
+
+          let message =
+              "HTTP " + response.status;
+
+
+          if (data?.message) {
+
+              message = data.message;
+
+          } else if (data?.error) {
+
+              message = data.error;
+
+          } else if (
+              typeof data === "string"
+          ) {
+
+              message = data;
+          }
+
+
+          const error =
+              new Error(message);
+
+          error.status =
+              response.status;
+
+          throw error;
+      }
+
+
+      return data;
+  }
+
+
+  /* =========================================================
+     EXTRACT JWT
+  ========================================================= */
+
+  function extractToken(data) {
+
+      if (typeof data === "string") {
+
+          return data;
+      }
+
+
+      return (
+          data?.token ||
+          data?.jwt ||
+          data?.accessToken ||
+          data?.data?.token ||
+          data?.data?.jwt ||
+          data?.data?.accessToken ||
+          ""
+      );
+  }
+
+
+  /* =========================================================
+     LOGIN / REGISTER
+  ========================================================= */
+
+  $("authForm")
+      .addEventListener(
+          "submit",
+          async event => {
+
+              event.preventDefault();
+
+
+              const username =
+                  $("username")
+                      .value
+                      .trim();
+
+
+              const password =
+                  $("password")
+                      .value;
+
+
+              const email =
+                  $("email")
+                      .value
+                      .trim();
+
+
+              if (
+                  !username ||
+                  !password
+              ) {
+
+                  showAuthMessage(
+                      "Username and password are required."
+                  );
+
+                  return;
+              }
+
+
+              if (
+                  registerMode &&
+                  !email
+              ) {
+
+                  showAuthMessage(
+                      "Email is required."
+                  );
+
+                  return;
+              }
+
+
+              $("authButton")
+                  .disabled = true;
+
+
+              try {
+
+
+                  /* =========================================
+                     REGISTER
+                  ========================================= */
+
+                  if (registerMode) {
+
+                      await apiRequest(
+                          "/users/register",
+                          {
+                              method: "POST",
+
+                              body:
+                                  JSON.stringify({
+
+                                      username:
+                                          username,
+
+                                      userEmail:
+                                          email,
+
+                                      userPassword:
+                                          password
+
+                                  })
+                          }
+                      );
+
+
+                      registerMode = false;
+
+
+                      $("loginTab")
+                          .classList
+                          .add("active");
+
+
+                      $("registerTab")
+                          .classList
+                          .remove("active");
+
+
+                      $("emailField")
+                          .classList
+                          .add("hidden");
+
+
+                      $("authButton")
+                          .textContent = "Login";
+
+
+                      $("password")
+                          .value = "";
+
+
+                      showAuthMessage(
+                          "Registration successful. Please login.",
+                          "success"
+                      );
+
+
+                      return;
+                  }
+
+
+                  /* =========================================
+                     LOGIN
+                  ========================================= */
+
+                  const loginResponse =
+                      await apiRequest(
+                          "/auth/login",
+                          {
+                              method: "POST",
+
+                              body:
+                                  JSON.stringify({
+
+                                      username:
+                                          username,
+
+                                      password:
+                                          password
+
+                                  })
+                          }
+                      );
+
+
+                  const token =
+                      extractToken(
+                          loginResponse
+                      );
+
+
+                  if (!token) {
+
+                      throw new Error(
+                          "Backend login response does not contain JWT token."
+                      );
+                  }
+
+
+                  jwtToken = token;
+
+
+                  localStorage.setItem(
+                      "chat_jwt",
+                      jwtToken
+                  );
+
+
+                  await startApplication();
+
+
+              } catch (error) {
+
+                  console.error(
+                      "AUTH ERROR:",
+                      error
+                  );
+
+
+                  showAuthMessage(
+                      error.message ||
+                      "Authentication failed."
+                  );
+
+
+              } finally {
+
+                  $("authButton")
+                      .disabled = false;
+              }
+
+          }
+      );
+
+
+  /* =========================================================
+     START APPLICATION
+  ========================================================= */
+
+  async function startApplication() {
+
+      try {
+
+
+          /* =========================================
+             CURRENT USER
+          ========================================= */
+
+          currentUser =
+              await apiRequest(
+                  "/users/me"
+              );
+
+
+          $("myUsername")
+              .textContent =
+              currentUser.username;
+
+
+          $("myAvatar")
+              .textContent =
+              getInitials(
+                  currentUser.username
+              );
+
+
+          showChatScreen();
+
+
+          /* =========================================
+             WEBSOCKET
+          ========================================= */
+
+          await connectWebSocket();
+
+
+      } catch (error) {
+
+          console.error(
+              "START ERROR:",
+              error
+          );
+
+
+          if (
+              error.status === 401 ||
+              error.status === 403
+          ) {
+
+              logout(false);
+
+
+              showAuthMessage(
+                  "JWT rejected. Please login again."
+              );
+
+          } else {
+
+              alert(
+                  "Application error: " +
+                  error.message
+              );
+          }
+      }
+  }
+
+
+  /* =========================================================
+     CONNECT WEBSOCKET
+  ========================================================= */
+
+  function connectWebSocket() {
+
+      return new Promise(
+          (resolve, reject) => {
+
+
+              if (!jwtToken) {
+
+                  reject(
+                      new Error(
+                          "JWT token missing."
+                      )
+                  );
+
+                  return;
+              }
+
+
+              if (stompClient) {
+
+                  try {
+
+                      stompClient.deactivate();
+
+                  } catch {}
+              }
+
+
+              stompClient =
+                  new StompJs.Client({
+
+                      brokerURL:
+                          WS_URL,
+
+
+                      connectHeaders: {
+
+                          Authorization:
+                              "Bearer " +
+                              jwtToken
+                      },
+
+
+                      reconnectDelay:
+                          3000,
+
+
+                      heartbeatIncoming:
+                          10000,
+
+
+                      heartbeatOutgoing:
+                          10000,
+
+
+                      debug: message => {
+
+                          console.log(
+                              "[STOMP]",
+                              message
+                          );
+                      },
+
+
+                      /* =====================================
+                         CONNECTED
+                      ===================================== */
+
+                      onConnect: () => {
+
+                          console.log(
+                              "WEBSOCKET CONNECTED"
+                          );
+
+
+                          websocketConnected =
+                              true;
+
+
+                          setConnectionStatus(
+                              true
+                          );
+
+
+                          /*
+                           * Backend:
+                           *
+                           * convertAndSendToUser(
+                           *     username,
+                           *     "/queue/messages",
+                           *     message
+                           * )
+                           *
+                           * Therefore:
+                           *
+                           * /user/queue/messages
+                           */
+
+                          stompClient.subscribe(
+                              "/user/queue/messages",
+                              frame => {
+
+                                  console.log(
+                                      "MESSAGE RECEIVED:",
+                                      frame.body
+                                  );
+
+
+                                  try {
+
+                                      const message =
+                                          JSON.parse(
+                                              frame.body
+                                          );
+
+
+                                      receiveMessage(
+                                          message
+                                      );
+
+
+                                  } catch (error) {
+
+                                      console.error(
+                                          "MESSAGE PARSE ERROR:",
+                                          error
+                                      );
+                                  }
+                              }
+                          );
+
+
+                          resolve();
+                      },
+
+
+                      /* =====================================
+                         DISCONNECTED
+                      ===================================== */
+
+                      onDisconnect: () => {
+
+                          websocketConnected =
+                              false;
+
+
+                          setConnectionStatus(
+                              false
+                          );
+
+
+                          console.log(
+                              "WEBSOCKET DISCONNECTED"
+                          );
+                      },
+
+
+                      /* =====================================
+                         STOMP ERROR
+                      ===================================== */
+
+                      onStompError: frame => {
+
+                          console.error(
+                              "STOMP ERROR:",
+                              frame.headers,
+                              frame.body
+                          );
+
+
+                          websocketConnected =
+                              false;
+
+
+                          setConnectionStatus(
+                              false
+                          );
+
+
+                          if (!currentUser) {
+
+                              reject(
+                                  new Error(
+                                      frame.headers?.message ||
+                                      "STOMP connection failed."
+                                  )
+                              );
+                          }
+                      },
+
+
+                      /* =====================================
+                         WEBSOCKET ERROR
+                      ===================================== */
+
+                      onWebSocketError: error => {
+
+                          console.error(
+                              "WEBSOCKET ERROR:",
+                              error
+                          );
+
+
+                          websocketConnected =
+                              false;
+
+
+                          setConnectionStatus(
+                              false
+                          );
+
+
+                          if (!currentUser) {
+
+                              reject(
+                                  new Error(
+                                      "WebSocket connection failed."
+                                  )
+                              );
+                          }
+                      }
+
+                  });
+
+
+              try {
+
+                  stompClient.activate();
+
+              } catch (error) {
+
+                  reject(error);
+              }
+
+          }
+      );
+  }
+
+
+  /* =========================================================
+     CONNECTION UI
+  ========================================================= */
+
+  function setConnectionStatus(
+      connected
+  ) {
+
+      $("connectionDot")
+          .classList
+          .toggle(
+              "connected",
+              connected
+          );
+
+
+      $("connectionText")
+          .textContent =
+          connected
+              ? "Connected"
+              : "Disconnected";
+
+
+      if (selectedUser) {
+
+          $("sendButton")
+              .disabled =
+              !connected;
+      }
+  }
+
+
+  /* =========================================================
+     SEARCH BUTTON
+  ========================================================= */
+
+  $("searchButton")
+      .addEventListener(
+          "click",
+          searchUser
+      );
+
+
+  /* =========================================================
+     SEARCH ENTER
+  ========================================================= */
+
+  $("searchInput")
+      .addEventListener(
+          "keydown",
+          event => {
+
+              if (event.key === "Enter") {
+
+                  event.preventDefault();
+
+                  searchUser();
+              }
+          }
+      );
+
+
+  /* =========================================================
+     SEARCH USER
+  ========================================================= */
+
+  async function searchUser() {
+
+      const username =
+          $("searchInput")
+              .value
+              .trim();
+
+
+      const result =
+          $("searchResult");
+
+
+      if (!username) {
+
+          result.innerHTML =
+              `<div class="hint">
+                  Enter username first.
+               </div>`;
+
+          return;
+      }
+
+
+      if (
+          currentUser &&
+          username.toLowerCase() ===
+          currentUser.username.toLowerCase()
+      ) {
+
+          result.innerHTML =
+              `<div class="hint">
+                  You cannot chat with yourself.
+               </div>`;
+
+          return;
+      }
+
+
+      result.innerHTML =
+          `<div class="hint">
+              Searching MongoDB...
+           </div>`;
+
+
+      try {
+
+
+          const user =
+              await apiRequest(
+                  "/users/search?username=" +
+                  encodeURIComponent(username)
+              );
+
+
+          if (
+              !user ||
+              !user.username
+          ) {
+
+              result.innerHTML =
+                  `<div class="hint">
+                      User not found.
+                   </div>`;
+
+              return;
+          }
+
+
+          result.innerHTML = `
+
+              <div class="user-result">
+
+                  <div class="avatar">
+
+                      ${getInitials(
+                          user.username
+                      )}
+
+                  </div>
+
+
+                  <div class="user-info">
+
+                      <strong>
+                          ${escapeHtml(
+                              user.username
+                          )}
+                      </strong>
+
+
+                      <small>
+                          ${escapeHtml(
+                              user.userEmail || ""
+                          )}
+                      </small>
+
+                  </div>
+
+
+                  <button
+                      id="selectUserButton"
+                      class="chat-btn"
+                      type="button">
+
+                      Chat
+
+                  </button>
+
+              </div>
+          `;
+
+
+          $("selectUserButton")
+              .addEventListener(
+                  "click",
+                  () => {
+
+                      selectUser(user);
+
+                  }
+              );
+
+
+      } catch (error) {
+
+          console.error(
+              "SEARCH ERROR:",
+              error
+          );
+
+
+          if (error.status === 404) {
+
+              result.innerHTML =
+                  `<div class="hint">
+                      ❌ User does not exist in MongoDB.
+                   </div>`;
+
+          } else if (
+              error.status === 401 ||
+              error.status === 403
+          ) {
+
+              result.innerHTML =
+                  `<div class="hint">
+                      ❌ Authentication failed. Login again.
+                   </div>`;
+
+          } else {
+
+              result.innerHTML =
+                  `<div class="hint">
+                      ❌ Search failed:
+                      ${escapeHtml(
+                          error.message
+                      )}
+                   </div>`;
+          }
+      }
+  }
+
+
+  /* =========================================================
+     SELECT USER
+  ========================================================= */
+
+  async function selectUser(user) {
+
+      selectedUser = user;
+
+
+      console.log(
+          "SELECTED USER:",
+          user
+      );
+
+
+      $("chatUsername")
+          .textContent =
+          user.username;
+
+
+      $("chatAvatar")
+          .textContent =
+          getInitials(
+              user.username
+          );
+
+
+      $("chatStatus")
+          .textContent =
+          "Loading...";
+
+
+      $("messageInput")
+          .disabled = false;
+
+
+      $("sendButton")
+          .disabled =
+          !websocketConnected;
+
+
+      $("messageInput")
+          .placeholder =
+          websocketConnected
+              ? "Type a message..."
+              : "WebSocket connecting...";
+
+
+      /*
+       * Clear current messages before
+       * loading selected user's history.
+       */
+
+      $("messages").innerHTML =
+          `<div class="system-message">
+              Loading chat history...
+           </div>`;
+
+
+      /* =====================================================
+         LOAD HISTORY
+      ===================================================== */
+
+      try {
+
+          const history =
+              await apiRequest(
+                  "/chat/history/" +
+                  encodeURIComponent(
+                      user.username
+                  )
+              );
+
+
+          /*
+           * Important:
+           *
+           * User may change selected chat while
+           * history request is still running.
+           *
+           * Therefore make sure this history
+           * belongs to currently selected user.
+           */
+
+          if (
+              !selectedUser ||
+              selectedUser.username !==
+              user.username
+          ) {
+
+              return;
+          }
+
+
+          renderHistory(
+              Array.isArray(history)
+                  ? history
+                  : []
+          );
+
+
+      } catch (error) {
+
+          console.error(
+              "HISTORY ERROR:",
+              error
+          );
+
+
+          if (
+              selectedUser &&
+              selectedUser.username ===
+              user.username
+          ) {
+
+              $("messages").innerHTML =
+                  `<div class="system-message">
+                      Could not load history:
+                      ${escapeHtml(
+                          error.message
+                      )}
+                   </div>`;
+          }
+      }
+
+
+      /* =====================================================
+         ONLINE STATUS
+      ===================================================== */
+
+      try {
+
+          const status =
+              await apiRequest(
+                  "/users/status/" +
+                  encodeURIComponent(
+                      user.username
+                  )
+              );
+
+
+          if (
+              selectedUser &&
+              selectedUser.username ===
+              user.username
+          ) {
+
+              $("chatStatus")
+                  .textContent =
+                  status?.online
+                      ? "Online"
+                      : "Offline";
+          }
+
+
+      } catch {
+
+          if (
+              selectedUser &&
+              selectedUser.username ===
+              user.username
+          ) {
+
+              $("chatStatus")
+                  .textContent =
+                  "User";
+          }
+      }
+
+
+      $("messageInput")
+          .focus();
+  }
+
+
+  /* =========================================================
+     RENDER HISTORY
+  ========================================================= */
+
+  function renderHistory(messages) {
+
+      const box =
+          $("messages");
+
+
+      box.innerHTML = "";
+
+
+      if (!messages.length) {
+
+          box.innerHTML =
+              `<div
+                  id="emptyState"
+                  class="empty">
+
+                  <strong>
+                      No messages yet
+                  </strong>
+
+                  <br>
+
+                  Send the first message.
+
+               </div>`;
+
+          return;
+      }
+
+
+      /*
+       * Use DOM appendChild.
+       *
+       * Do NOT use:
+       *
+       * box.innerHTML += ...
+       *
+       * because that recreates existing DOM nodes.
+       */
+
+      const fragment =
+          document.createDocumentFragment();
+
+
+      messages.forEach(
+          message => {
+
+              const row =
+                  createMessageElement(
+                      message
+                  );
+
+              fragment.appendChild(row);
+          }
+      );
+
+
+      box.appendChild(
+          fragment
+      );
+
+
+      /*
+       * History should always open
+       * at the latest message.
+       */
+
+      scrollMessages();
+  }
+
+
+  /* =========================================================
+     RECEIVE MESSAGE
+  ========================================================= */
+
+  function receiveMessage(message) {
+
+      if (!message) {
+
+          return;
+      }
+
+
+      console.log(
+          "RECEIVED OBJECT:",
+          message
+      );
+
+
+      if (
+          !selectedUser ||
+          !currentUser
+      ) {
+
+          console.log(
+              "Message received but no chat selected:",
+              message
+          );
+
+          return;
+      }
+
+
+      /*
+       * Check whether this message belongs
+       * to currently selected conversation.
+       */
+
+      const sameChat =
+          (
+              message.sender ===
+              selectedUser.username &&
+
+              message.receiver ===
+              currentUser.username
+          )
+          ||
+          (
+              message.sender ===
+              currentUser.username &&
+
+              message.receiver ===
+              selectedUser.username
+          );
+
+
+      if (!sameChat) {
+
+          console.log(
+              "Message belongs to another chat:",
+              message
+          );
+
+          return;
+      }
+
+
+      /*
+       * IMPORTANT SCROLL LOGIC
+       *
+       * If user is already near bottom:
+       *     new message -> scroll bottom
+       *
+       * If user is reading old messages:
+       *     new message -> DON'T move screen
+       */
+
+      const wasNearBottom =
+          isNearBottom();
+
+
+      removeEmptyState();
+
+
+      /*
+       * Prevent accidental duplicate DOM
+       * message if same MongoDB id is
+       * somehow received twice.
+       */
+
+      if (
+          message.id &&
+          document.querySelector(
+              `[data-message-id="${CSS.escape(message.id)}"]`
+          )
+      ) {
+
+          console.log(
+              "Duplicate message ignored:",
+              message.id
+          );
+
+          return;
+      }
+
+
+      addMessageToScreen(
+          message
+      );
+
+
+      if (wasNearBottom) {
+
+          scrollMessages();
+      }
+  }
+
+
+  /* =========================================================
+     CREATE MESSAGE ELEMENT
+  ========================================================= */
+
+  function createMessageElement(message) {
+
+      const row =
+          document.createElement(
+              "div"
+          );
+
+
+      const mine =
+          currentUser &&
+          message.sender ===
+          currentUser.username;
+
+
+      row.className =
+          "message-row" +
+          (mine ? " mine" : "");
+
+
+      /*
+       * Store MongoDB message ID.
+       *
+       * This helps prevent duplicate
+       * messages on frontend.
+       */
+
+      if (message.id) {
+
+          row.dataset.messageId =
+              message.id;
+      }
+
+
+      const bubble =
+          document.createElement(
+              "div"
+          );
+
+
+      bubble.className =
+          "bubble";
+
+
+      const text =
+          document.createElement(
+              "div"
+          );
+
+
+      /*
+       * Backend field:
+       *
+       * private String message;
+       *
+       * Therefore:
+       *
+       * message.message
+       */
+
+      text.textContent =
+          message.message || "";
+
+
+      const time =
+          document.createElement(
+              "div"
+          );
+
+
+      time.className =
+          "time";
+
+
+      time.textContent =
+          formatTime(
+              message.timestamp
+          );
+
+
+      bubble.appendChild(
+          text
+      );
+
+
+      bubble.appendChild(
+          time
+      );
+
+
+      row.appendChild(
+          bubble
+      );
+
+
+      return row;
+  }
+
+
+  /* =========================================================
+     ADD MESSAGE TO SCREEN
+  ========================================================= */
+
+  function addMessageToScreen(message) {
+
+      removeEmptyState();
+
+
+      /*
+       * Duplicate protection.
+       */
+
+      if (
+          message.id &&
+          document.querySelector(
+              `[data-message-id="${CSS.escape(message.id)}"]`
+          )
+      ) {
+
+          return;
+      }
+
+
+      const row =
+          createMessageElement(
+              message
+          );
+
+
+      $("messages")
+          .appendChild(
+              row
+          );
+  }
+
+
+  /* =========================================================
+     SEND MESSAGE
+  ========================================================= */
+
+  $("messageForm")
+      .addEventListener(
+          "submit",
+          event => {
+
+              event.preventDefault();
+
+              sendMessage();
+          }
+      );
+
+
+  /* =========================================================
+     ENTER TO SEND
+  ========================================================= */
+
+  $("messageInput")
+      .addEventListener(
+          "keydown",
+          event => {
+
+              if (
+                  event.key === "Enter" &&
+                  !event.shiftKey
+              ) {
+
+                  event.preventDefault();
+
+                  sendMessage();
+              }
+          }
+      );
+
+
+  /* =========================================================
+     SEND MESSAGE FUNCTION
+  ========================================================= */
+
+  function sendMessage() {
+
+      const input =
+          $("messageInput");
+
+
+      const text =
+          input.value.trim();
+
+
+      if (!selectedUser) {
+
+          alert(
+              "First search and select a user."
+          );
+
+          return;
+      }
+
+
+      if (
+          !websocketConnected ||
+          !stompClient
+      ) {
+
+          alert(
+              "WebSocket is not connected."
+          );
+
+          return;
+      }
+
+
+      if (!text) {
+
+          return;
+      }
+
+
+      /*
+       * Backend ChatMessageEntity:
+       *
+       * sender
+       * receiver
+       * message
+       * timestamp
+       *
+       * Frontend only sends:
+       *
+       * receiver
+       * message
+       *
+       * Backend sets:
+       *
+       * sender
+       * timestamp
+       */
+
+      const payload = {
+
+          receiver:
+              selectedUser.username,
+
+          message:
+              text
+      };
+
+
+      console.log(
+          "SENDING MESSAGE:",
+          payload
+      );
+
+
+      try {
+
+          stompClient.publish({
+
+              destination:
+                  "/app/chat",
+
+              body:
+                  JSON.stringify(
+                      payload
+                  )
+          });
+
+
+          /*
+           * IMPORTANT:
+           *
+           * Do NOT add message locally.
+           *
+           * Backend:
+           *
+           * 1. saves message
+           * 2. sends to receiver
+           * 3. sends to sender
+           *
+           * Then receiveMessage()
+           * displays it.
+           */
+
+          input.value = "";
+
+          input.focus();
+
+
+      } catch (error) {
+
+          console.error(
+              "SEND ERROR:",
+              error
+          );
+
+
+          alert(
+              "Message send failed: " +
+              error.message
+          );
+      }
+  }
+
+
+  /* =========================================================
+     REMOVE EMPTY STATE
+  ========================================================= */
+
+  function removeEmptyState() {
+
+      const empty =
+          $("emptyState");
+
+
+      if (empty) {
+
+          empty.remove();
+      }
+  }
+
+
+  /* =========================================================
+     CHECK IF USER IS NEAR BOTTOM
+  ========================================================= */
+
+  function isNearBottom() {
+
+      const box =
+          $("messages");
+
+
+      const distance =
+          box.scrollHeight -
+          box.scrollTop -
+          box.clientHeight;
+
+
+      return distance < 120;
+  }
+
+
+  /* =========================================================
+     STABLE SCROLL TO BOTTOM
+  ========================================================= */
+
+  function scrollMessages() {
+
+      const box =
+          $("messages");
+
+
+      /*
+       * Wait until browser has completed
+       * DOM/layout calculation.
+       */
+
+      requestAnimationFrame(
+          () => {
+
+              box.scrollTop =
+                  box.scrollHeight;
+          }
+      );
+  }
+
+
+  /* =========================================================
+     TIME FORMAT
+  ========================================================= */
+
+  function formatTime(timestamp) {
+
+      if (!timestamp) {
+
+          return "";
+      }
+
+
+      const date =
+          new Date(timestamp);
+
+
+      if (
+          Number.isNaN(
+              date.getTime()
+          )
+      ) {
+
+          return "";
+      }
+
+
+      return date.toLocaleTimeString(
+          [],
+          {
+              hour: "2-digit",
+              minute: "2-digit"
+          }
+      );
+  }
+
+
+  /* =========================================================
+     ESCAPE HTML
+  ========================================================= */
+
+  function escapeHtml(value) {
+
+      return String(
+          value ?? ""
+      ).replace(
+          /[&<>"']/g,
+          character => ({
+
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#039;"
+
+          })[character]
+      );
+  }
+
+
+  /* =========================================================
+     LOGOUT BUTTON
+  ========================================================= */
+
+  $("logoutButton")
+      .addEventListener(
+          "click",
+          () => logout(true)
+      );
+
+
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
+
+  function logout(showMessage) {
+
+      try {
+
+          if (stompClient) {
+
+              stompClient.deactivate();
+          }
+
+      } catch {}
+
+
+      stompClient = null;
+
+      websocketConnected = false;
+
+      jwtToken = "";
+
+      currentUser = null;
+
+      selectedUser = null;
+
+
+      localStorage.removeItem(
+          "chat_jwt"
+      );
+
+
+      $("searchInput")
+          .value = "";
+
+
+      $("searchResult")
+          .innerHTML = "";
+
+
+      $("chatUsername")
+          .textContent =
+          "Select a user";
+
+
+      $("chatStatus")
+          .textContent =
+          "Search a username to start chatting";
+
+
+      $("chatAvatar")
+          .textContent =
+          "?";
+
+
+      $("messages")
+          .innerHTML =
+          `<div
+              id="emptyState"
+              class="empty">
+
+              <strong>
+                  Select a registered user
+              </strong>
+
+              <br>
+
+              Search the exact username
+              to start chatting.
+
+           </div>`;
+
+
+      $("messageInput")
+          .value = "";
+
+
+      $("messageInput")
+          .disabled = true;
+
+
+      $("sendButton")
+          .disabled = true;
+
+
+      setConnectionStatus(
+          false
+      );
+
+
+      showLoginScreen();
+
+
+      if (showMessage) {
+
+          $("loginTab")
+              .click();
+
+
+          showAuthMessage(
+              "Logged out successfully.",
+              "success"
+          );
+      }
+  }
+
+
+  /* =========================================================
+     AUTO LOGIN
+  ========================================================= */
+
+  if (jwtToken) {
+
+      startApplication();
+
+  } else {
+
+      showLoginScreen();
+  }
+
+</script>
+
+</body>
+</html>
